@@ -191,6 +191,7 @@ class Helpers {
 	public static function get_current_screen() {
 		if ( function_exists( 'get_current_screen' ) ) {
 			$current_screen = get_current_screen();
+
 			if ( $current_screen instanceof \WP_Screen ) {
 				return $current_screen;
 			}
@@ -821,13 +822,12 @@ class Helpers {
 	/**
 	 * Get URL for settings page.
 	 *
-	 * @return string URL for settings page, i.e. "/wp-admin/options-general.php?page=simple_history_settings_menu_slug"
+	 * @return string URL for settings page, i.e. "/wp-admin/admin.php?page=simple_history_admin_menu_page"
 	 */
 	public static function get_settings_page_url() {
-		// return menu_page_url( Simple_History::SETTINGS_MENU_SLUG, 0 );
-		// menu_page_url() only works within amdin area.
+		// Can not use `menu_page_url()` because it only works within the admin area.
 		// But we want to be able to link to settings page also from front end.
-		return admin_url( 'options-general.php?page=' . Simple_History::SETTINGS_MENU_SLUG );
+		return admin_url( 'admin.php?page=simple_history_settings_page' );
 	}
 
 	/**
@@ -863,11 +863,14 @@ class Helpers {
 		ob_start();
 
 		?>
-		<a href="https://simple-history.com/add-ons/?utm_source=wpadmin&utm_content=nav-header" class="sh-PageHeader-rightLink" target="_blank">
-			<span class="sh-PageHeader-settingsLinkIcon sh-Icon sh-Icon--extension"></span>
-			<span class="sh-PageHeader-settingsLinkText"><?php esc_html_e( 'Add-ons', 'simple-history' ); ?></span>
-			<em class="sh-PageHeader-settingsLinkIcon-new"><?php esc_html_e( 'New', 'simple-history' ); ?></em>
-		</a>
+		<div class="sh-PageHeader-rightLink">
+			<a href="https://simple-history.com/add-ons/?utm_source=wpadmin&utm_content=nav-header" target="_blank">
+				<span class="sh-PageHeader-settingsLinkIcon sh-Icon sh-Icon--extension"></span>
+				<span class="sh-PageHeader-settingsLinkText"><?php esc_html_e( 'Add-ons', 'simple-history' ); ?></span>
+			</a>
+
+			<em class="sh-PremiumFeatureBadge"><?php esc_html_e( 'New', 'simple-history' ); ?></em>
+		</div>
 		<?php
 
 		return ob_get_clean();
@@ -1127,20 +1130,22 @@ class Helpers {
 	public static function is_on_our_own_pages( $hook = '' ) {
 		$current_screen = self::get_current_screen();
 
-		$basePrefix = apply_filters( 'simple_history/admin_location', 'index' );
-		$basePrefix = $basePrefix === 'index' ? 'dashboard' : $basePrefix;
+		// Seems like subpages to main admin page have bases that begin with "simple-history_page_".
+		$begins_with_simple_history = $current_screen && str_starts_with( $current_screen->base, 'simple-history_page_' );
 
-		if ( $current_screen && $current_screen->base == 'settings_page_' . Simple_History::SETTINGS_MENU_SLUG ) {
+		if ( $begins_with_simple_history ) {
 			return true;
-		} elseif ( $current_screen && $current_screen->base === $basePrefix . '_page_simple_history_page' ) {
+		} elseif ( $current_screen && $current_screen->base === 'settings_page_' . Simple_History::SETTINGS_MENU_SLUG ) {
+			// Base is "settings_page_simple_history_settings_menu_slug".
+			// Applies for settings page and settings page tabs.
 			return true;
-		} elseif (
-			$hook == 'settings_page_' . Simple_History::SETTINGS_MENU_SLUG ||
-			( self::setting_show_on_dashboard() && $hook == 'index.php' ) ||
-			( self::setting_show_as_page() && $hook == $basePrefix . '_page_simple_history_page' )
-		) {
+		} elseif ( $current_screen && $current_screen->base === 'simple-history_page_simple_history_settings_page' ) {
+			// History page below main admin page, ie. WP Admin › Simple History › Settings.
 			return true;
-		} elseif ( $current_screen && $current_screen->base == 'dashboard' && self::setting_show_on_dashboard() ) {
+		} elseif ( $current_screen && $current_screen->base === 'dashboard' && self::setting_show_on_dashboard() ) {
+			return true;
+		} elseif ( $current_screen && $current_screen->base === 'toplevel_page_' . Simple_History::MENU_PAGE_SLUG ) {
+			// New main menu menu.
 			return true;
 		}
 
@@ -1580,5 +1585,40 @@ class Helpers {
 		}
 
 		return $field;
+	}
+
+	/**
+	 * Determine if promo boxes should be shown.
+	 *
+	 * @return bool True if promo boxes should be shown, false otherwise.
+	 */
+	public static function show_promo_boxes() {
+		// Hide if Premium add-on is active.
+		if ( self::is_premium_add_on_active() ) {
+			return false;
+		}
+
+		// Hide if Extended Settings is active.
+		if ( self::is_extended_settings_add_on_active() ) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Check if premium add-on is active.
+	 *
+	 * @return bool True if premium add-on is active, false otherwise.
+	 */
+	public static function is_premium_add_on_active() {
+		return self::is_plugin_active( 'simple-history-premium/simple-history-premium.php' );
+	}
+
+	/**
+	 * Check if Extended Settings add-on is active.
+	 */
+	public static function is_extended_settings_add_on_active() {
+		return self::is_plugin_active( 'simple-history-extended-settings/index.php' );
 	}
 }

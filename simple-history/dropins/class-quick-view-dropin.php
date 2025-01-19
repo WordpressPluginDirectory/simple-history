@@ -3,6 +3,7 @@
 namespace Simple_History\Dropins;
 
 use Simple_History\Helpers;
+use Simple_History\Simple_History;
 
 /**
  * Displays the latest events from Simple History in the admin bar using React.
@@ -20,6 +21,13 @@ class Quick_View_Dropin extends Dropin {
 			return;
 		}
 
+		// Check that admin bar is actually shown.
+		// CSS and JS will be added to the HTML even if the admin bar is not shown,
+		// which is wrong.
+		if ( ! is_admin_bar_showing() ) {
+			return;
+		}
+
 		add_action( 'admin_bar_menu', [ $this, 'add_simple_history_to_admin_bar' ], 100 );
 
 		// Quick View is available both in the admin and on the front end,
@@ -34,17 +42,13 @@ class Quick_View_Dropin extends Dropin {
 	 * @param \WP_Admin_Bar $wp_admin_bar Admin bar instance.
 	 */
 	public function add_simple_history_to_admin_bar( $wp_admin_bar ) {
-		if ( ! is_admin_bar_showing() ) {
-			return;
-		}
-
 		// Add the main menu item.
 		$wp_admin_bar->add_node(
 			array(
 				// Id's are prefixed automatically, so no need to prefix them here.
 				'id'    => 'simple-history',
 				'title' => 'History',
-				'href'  => $this->simple_history->get_view_history_page_admin_url(),
+				'href'  => Simple_History::get_view_history_page_admin_url(),
 			)
 		);
 
@@ -93,7 +97,7 @@ class Quick_View_Dropin extends Dropin {
 			'simple_history_admin_bar_scripts',
 			'simpleHistoryAdminBar',
 			[
-				'adminPageUrl' => $this->simple_history->get_view_history_page_admin_url(),
+				'adminPageUrl' => Simple_History::get_view_history_page_admin_url(),
 				'viewSettingsUrl' => Helpers::get_settings_page_url(),
 				'currentUserCanViewHistory' => current_user_can( Helpers::get_view_history_capability() ),
 			],
